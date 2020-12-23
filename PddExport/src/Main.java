@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Main {
-
+    private static final boolean DEBUG = true;
 
     public static void main(String[] args) {
         /*try {
@@ -45,11 +45,12 @@ public class Main {
         try {
             DateTimeFormatter pattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             //LocalDate parse = LocalDate.parse(date, DateTimeFormatter.BASIC_ISO_DATE);
-            firstTime = LocalDateTime.parse(args[0], pattern);
-            //firstTime = LocalDateTime.parse("2020-10-28 02:54:26", pattern);
-            lastTime = LocalDateTime.parse(args[1], pattern);
-            //lastTime = LocalDateTime.parse("2020-10-28 05:34:17", pattern);
-            //System.out.println("parse : " + firstTime + " lastTime : " + lastTime);
+            //firstTime = LocalDateTime.parse(args[0], pattern);
+            firstTime = LocalDateTime.parse("2020-12-20 12:58:26", pattern);
+            //lastTime = LocalDateTime.parse(args[1], pattern);
+            lastTime = LocalDateTime.parse("2020-12-23 12:59:17", pattern);
+            if (DEBUG)
+            System.out.println("parse : " + firstTime + " lastTime : " + lastTime);
         } catch (Exception e) {
             System.out.println("时间格式不正确 请重新输入 ->" + e.getMessage());
             return;
@@ -66,30 +67,32 @@ public class Main {
             String json = JsonUtil.readJsonFile(y.getAbsolutePath());
             PddResult pddResult = JSON.parseObject(json, PddResult.class);
             List<OrderList.Item> pageItems = pddResult.getResult().getPageItems();
-            //System.out.println(pageItems);
+            if (DEBUG)
+                System.out.println(pageItems);
             totalList.addAll(pageItems);
         });
         // 去重
         ArrayList<OrderList.Item> pageItems = totalList.stream().collect(
                 Collectors.collectingAndThen(
                         Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(OrderList.Item::getOrder_sn))), ArrayList::new));
-        //System.out.println("去重后 ： " + pageItems.size());
+        if (DEBUG) System.out.println("去重后 ： " + pageItems.size());
 
         // 过滤掉不在时间范围内的订单
         long firstTimeMilli = firstTime.toInstant(ZoneOffset.of("+8")).toEpochMilli()/1000;
         long lastTimeMilli = lastTime.toInstant(ZoneOffset.of("+8")).toEpochMilli()/1000;
-        //System.out.println(firstTimeMilli);
-        //System.out.println(lastTimeMilli);
+        if (DEBUG) System.out.println(firstTimeMilli);
+        if (DEBUG) System.out.println(lastTimeMilli);
         List<OrderList.Item> collect = pageItems.stream().filter(x -> {
 
-            long promise_shipping_time = Long.parseLong(x.getPromise_shipping_time());
+            long promise_shipping_time = Long.parseLong(x.getConfirm_time());
             if (promise_shipping_time >= firstTimeMilli && promise_shipping_time <= lastTimeMilli) {
                 return true;
             }
             return false;
         }).collect(Collectors.toList());
         pageItems = (ArrayList<OrderList.Item>) collect;
-        //System.out.println("过滤时间后 : " + pageItems.size());
+        if (DEBUG)
+            System.out.println("过滤时间后 : " + pageItems.size());
 
         //String json = JsonUtil.readJsonFile("D:\\workSpace\\IDEA\\PddExport\\out\\artifacts\\PddExport_jar\\json.txt");
         int total = 0;
@@ -206,7 +209,8 @@ public class Main {
             while(iterator.hasNext()) {
                 Map.Entry<String, Integer> next = iterator.next();
                 total += next.getValue();
-                //System.out.println("货号:"+next.getKey() + "  num:"+next.getValue());
+                if (DEBUG)
+                    System.out.println("货号:"+next.getKey() + "  num:"+next.getValue());
                 Line sumLine = new Line();
                 List<Column> sumColumns = new ArrayList<>();
                 for (int i = 0; i < 3; i++) {
@@ -277,7 +281,7 @@ public class Main {
                     case 0:column.setValue(pageItems.get(j).getGoods_name());break;
                     case 1:column.setValue(pageItems.get(j).getSpec());break;
                     case 2:column.setValue(pageItems.get(j).getGoods_number());break;
-                    case 3:column.setValue(pageItems.get(j).getGoods_amount());break;
+                    case 3:column.setValue((double)pageItems.get(j).getGoods_amount() / 100 );break;
                     case 4:column.setValue(pageItems.get(j).getNickname());break;
                     case 5:column.setValue(pageItems.get(j).getOrder_status_str());break;
                     case 6:column.setValue(pageItems.get(j).getReceive_name());break;
@@ -291,9 +295,6 @@ public class Main {
             line.setColumns(columns);
             lines.add(line);
         }
-
-
-
         POIUtil.exportExcel(titles,lines,"备货单");
         System.out.println("备货单导出成功，请查看当前目录下<备货单.xls>");
     }
